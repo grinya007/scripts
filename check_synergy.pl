@@ -43,7 +43,7 @@ sub client_pid
     my $t;
     sub check_server
     {
-        $t ||= Net::Telnet->new(Port=>24800);
+        $t ||= Net::Telnet->new(Port=>24800,Timeout=>10);
         eval
         {
             $t->open();
