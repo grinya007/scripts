@@ -10,7 +10,7 @@ while (1)
     my $bServer = check_server();
     if ($iPid && $bServer)
     {
-        $iSleep = 600;
+        $iSleep = 10;
         warn localtime().' ($iPid && $bServer) sleep: '.$iSleep."; pid: $iPid\n";
     }
     elsif (!$iPid && !$bServer)
@@ -27,7 +27,7 @@ while (1)
     elsif (!$iPid && $bServer)
     {
         system('synergyc -d FATAL -l /dev/null --no-tray --name debwork localhost:24800');
-        $iSleep = 600;
+        $iSleep = 10;
         warn localtime().' (!$iPid && $bServer) sleep: '.$iSleep."; pid: ".client_pid()." (started)\n";
     }
 }
