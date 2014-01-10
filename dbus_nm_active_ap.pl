@@ -3,8 +3,6 @@ use strict;
 use warnings;
 use Net::DBus;
 
-use Data::Dumper;
-
 # locally
 $ENV{DISPLAY} = ':0.0';
 
