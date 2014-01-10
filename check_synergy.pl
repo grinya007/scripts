@@ -10,23 +10,23 @@ while (1)
     my $bLock = 0;
     if ($iPid && $bServer)
     {
-        warn localtime().' ($iPid && $bServer) sleep: '.$iSleep."; pid: $iPid\n";
+        warn localtime().' ($iPid && $bServer)'."; pid: $iPid\n";
     }
     elsif (!$iPid && !$bServer)
     {
         $bLock = 1;
-        warn localtime().' (!$iPid && !$bServer) sleep: '.$iSleep."; pid: $iPid\n";
+        warn localtime().' (!$iPid && !$bServer)'."; pid: $iPid\n";
     }
     elsif ($iPid && !$bServer)
     {
         $bLock = 1;
         kill 15, $iPid;
-        warn localtime().' ($iPid && !$bServer) sleep: '.$iSleep."; pid: $iPid (killed)\n";
+        warn localtime().' ($iPid && !$bServer)'."; pid: $iPid (killed)\n";
     }
     elsif (!$iPid && $bServer)
     {
         system('synergyc -d FATAL -l /dev/null --no-tray --name debwork localhost:24800');
-        warn localtime().' (!$iPid && $bServer) sleep: '.$iSleep."; pid: ".client_pid()." (started)\n";
+        warn localtime().' (!$iPid && $bServer)'."; pid: ".client_pid()." (started)\n";
     }
     if ($bLock)
     {
