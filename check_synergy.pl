@@ -4,31 +4,33 @@ use Net::Telnet;
 
 while (1)
 {
-    our $iSleep ||= 10;
-    sleep $iSleep;
+    sleep 5;
     my $iPid = client_pid();
     my $bServer = check_server();
+    my $bLock = 0;
     if ($iPid && $bServer)
     {
-        $iSleep = 10;
         warn localtime().' ($iPid && $bServer) sleep: '.$iSleep."; pid: $iPid\n";
     }
     elsif (!$iPid && !$bServer)
     {
-        $iSleep = 10;
+        $bLock = 1;
         warn localtime().' (!$iPid && !$bServer) sleep: '.$iSleep."; pid: $iPid\n";
     }
     elsif ($iPid && !$bServer)
     {
+        $bLock = 1;
         kill 15, $iPid;
-        $iSleep = 10;
         warn localtime().' ($iPid && !$bServer) sleep: '.$iSleep."; pid: $iPid (killed)\n";
     }
     elsif (!$iPid && $bServer)
     {
         system('synergyc -d FATAL -l /dev/null --no-tray --name debwork localhost:24800');
-        $iSleep = 10;
         warn localtime().' (!$iPid && $bServer) sleep: '.$iSleep."; pid: ".client_pid()." (started)\n";
+    }
+    if ($bLock)
+    {
+        system('/home/ag/.scripts/dbus_gnome_lock.pl --lock');
     }
 }
 
