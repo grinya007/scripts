@@ -14,6 +14,7 @@ my $UNLOCK_COMMAND = 'ssh work -q /home/ag/.scripts/dbus_gnome_lock.pl --unlock'
 my $CHECK_NETWORK_COMMAND = 'nohup ssh home >/dev/null';
 my $CHECK_TUNNEL_COMMAND = 'nohup ssh work >/dev/null';
 my $SET_TUNNEL_COMMAND = 'nohup ssh work_tunnel /home/ag/.scripts/idle.sh >/dev/null &';
+my $START_SYNERGY_COMMAND = 'synergys -c /home/ag/docs/synergy.sgc';
 
 my $rScreenSaver = Net::DBus->session()
     ->get_service('org.gnome.ScreenSaver')
@@ -32,24 +33,7 @@ $rScreenSaver->connect_to_signal
     sub
     {
         my ($bLocked) = @_;
-        my $sBSSID;
-        eval
-        {
-            my $rAP = $rNM
-                ->get_object($rWlan0->ActiveAccessPoint(), 'org.freedesktop.NetworkManager.AccessPoint');
-            $sBSSID = $rAP->HwAddress();
-        };
-        if ($sBSSID)
-        {
-            if ($sBSSID eq $WORKPLACE_AP)
-            {
-                set_work_locked($bLocked);
-            }
-            else
-            {
-                set_work_locked(1); # just in case
-            }
-        }
+        all_in_one_set_work_locked($rWlan0->ActiveAccessPoint(), $bLocked);
     }
 );
 
@@ -61,71 +45,98 @@ $rWlan0->connect_to_signal
         my ($rhProp) = @_;
         if (defined($rhProp->{ActiveAccessPoint}))
         {
-            my $sBSSID;
-            eval
-            {
-                my $rAP = $rNM
-                    ->get_object($rhProp->{ActiveAccessPoint}, 'org.freedesktop.NetworkManager.AccessPoint');
-                $sBSSID = $rAP->HwAddress();
-            };
-            if ($sBSSID)
-            {
-                if ($sBSSID eq $WORKPLACE_AP)
-                { # oh my god
-                    my $bNetworkOk = 0;
-                    for (0..9)
-                    {
-                        if (!$_ && !set_work_locked($rScreenSaver->GetActive()))
-                        {
-                            last;
-                        }
-                        if (system($CHECK_NETWORK_COMMAND))
-                        {
-                            sleep 2;
-                        }
-                        else
-                        {
-                            $bNetworkOk = 1;
-                            last;
-                        }
-                    }
-                    if ($bNetworkOk)
-                    {
-                        my $bTunnelOk = 0;
-                        for (0..11)
-                        {
-                            if (system($CHECK_TUNNEL_COMMAND))
-                            {
-                                system($SET_TUNNEL_COMMAND) unless $_;
-                                sleep 5;
-                            }
-                            else
-                            {
-                                $bTunnelOk = 1;
-                                last;
-                            }
-                        }
-                        if ($bTunnelOk)
-                        {
-                            set_work_locked($rScreenSaver->GetActive());
-                        }
-                    }
-                }
-                else
-                {
-                    set_work_locked(1); # just in case
-                }
-            }
+            all_in_one_set_work_locked($rhProp->{ActiveAccessPoint}, $rScreenSaver->GetActive());
         }
     }
 );
 
 Net::DBus::Reactor->main()->run();
 
+sub set_up_tunnel
+{
+    my $bNetworkOk = 0;
+    my $bTunnelOk = 0;
+    for (0..9)
+    {
+        if (system($CHECK_NETWORK_COMMAND))
+        {
+            sleep 2;
+        }
+        else
+        {
+            $bNetworkOk = 1;
+            last;
+        }
+    }
+    if ($bNetworkOk)
+    {
+        for (0..11)
+        {
+            if (system($CHECK_TUNNEL_COMMAND))
+            {
+                system($SET_TUNNEL_COMMAND) unless $_;
+                sleep 5;
+            }
+            else
+            {
+                $bTunnelOk = 1;
+                last;
+            }
+        }
+    }
+    return $bTunnelOk;
+}
+
+sub check_synergy
+{
+    my ($iPid) = `pgrep synergys`;
+    chomp $iPid if $iPid;
+    return $iPid ? $iPid : 0;
+}
+
+sub start_synergy
+{
+    system($START_SYNERGY_COMMAND) if !check_synergy();
+}
+
+sub stop_synergy
+{
+    my $iPid = check_synergy();
+    kill(15, $iPid) if $iPid;
+}
+
 sub set_work_locked
 {
     my ($bLock) = @_;
-    return system($bLock ? $LOCK_COMMAND : $UNLOCK_COMMAND);
+    return !system($bLock ? $LOCK_COMMAND : $UNLOCK_COMMAND);
+}
+
+sub all_in_one_set_work_locked
+{
+    my ($sAP, $bLock) = @_;
+    my $sBSSID;
+    eval
+    {
+        my $rAP = $rNM
+            ->get_object($sAP, 'org.freedesktop.NetworkManager.AccessPoint');
+        $sBSSID = $rAP->HwAddress();
+    };
+    if ($sBSSID)
+    {
+        if ($sBSSID eq $WORKPLACE_AP)
+        {
+            start_synergy();
+            if (!set_work_locked($bLock))
+            {
+                set_up_tunnel() && set_work_locked($bLock);
+            }
+        }
+        else
+        {
+            stop_synergy();
+            set_work_locked(1); # just in case
+        }
+    }
 }
 
 exit 0;
