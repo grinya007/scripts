@@ -5,7 +5,7 @@ use Digest::MD5 qw/md5/;
 my $FILE = $ARGV[0];
 my $FIND = $ARGV[1];
 my $INDEX_ROW_LENGTH = 16 + 8; # md5 hash + 64-bit int offset
-my $ROWS_TO_SCAN = 10000;
+my $ROWS_TO_SCAN = 100000;
 my $MAX_LONG_VALUE = 0xffffffffffffffff;
 #warn sprintf("%16x", $MAX_LONG_VALUE);
 
@@ -23,7 +23,7 @@ my $rows_count = ($file_size - 8 - $data_length) / $INDEX_ROW_LENGTH;
 warn 'we got '.$rows_count.' rows of data';
 
 my $find_hash = md5($FIND);
-my $find_prefix = unpack('Q', join('', (split //, $find_hash)[0..7]));
+my $find_prefix = unpack_Q((split //, $find_hash)[0..7]);
 warn 'searching for '.$find_prefix;
 
 my $guess_position = sprintf("%.0f", ($find_prefix * $rows_count) / $MAX_LONG_VALUE) + 0;
@@ -40,12 +40,11 @@ sysread(F, $b, $scan_offset * $INDEX_ROW_LENGTH);
 my $i = 0;
 my @a = split //, $b;
 #warn @a[0..20];
-while (@a) {
+while (@a) { # TODO in-memory binary search here, take data by offset
     #warn scalar(@a);
-    my @tmp = splice(@a, 0, 24);
-    die 'wtf' if scalar(@tmp) != 24;
-    #my $prefix = unpack('C', join('', $tmp[0]));
-    my $prefix = (ord($tmp[0])<<56)+(ord($tmp[1])<<48)+(ord($tmp[2])<<40)+(ord($tmp[3])<<32)+(ord($tmp[4])<<24)+(ord($tmp[5])<<16)+(ord($tmp[6])<<8)+(ord($tmp[7]));
+    my @tmp = splice(@a, 0, $INDEX_ROW_LENGTH);
+    die 'wtf' if scalar(@tmp) != $INDEX_ROW_LENGTH;
+    my $prefix = unpack_Q(@tmp[0..7]);
     #warn $find_prefix;
     #warn $prefix;
     die 'you miss right' if !$i && $prefix >= $find_prefix;
@@ -54,3 +53,13 @@ while (@a) {
     $i++;
 }
 
+# FIXME something goes wrong with unpack( 'Q', <eight left bytes of md5> )
+sub unpack_Q {
+    my $shift = 56;
+    my $long = 0;
+    for (@_) {
+        $long += (ord($_) << $shift);
+        $shift -= 8;
+    }
+    return $long;
+}

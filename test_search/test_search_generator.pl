@@ -5,7 +5,7 @@ use Digest::MD5 qw/md5_hex/;
 use IPC::Open2;
 
 my $FILE = 'surfingbird.com';
-my $URLS_COUNT = 100;
+my $URLS_COUNT = 100000000;
 
 my $l = 0;
 my ($i, $o, $f);
