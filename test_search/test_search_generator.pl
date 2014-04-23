@@ -18,9 +18,9 @@ for (1..$URLS_COUNT) {
     chomp($s); 
     $s =~ s/[=+\/]//g; 
     my $t = join("&", ("param=".int(rand(1000000))) x $params_counts->[int(rand(12))]);
-    my $u = sprintf("http://$FILE/surf/%s%s", $s, ($t ? "?$t" : "")); 
-    print $f $u;
-    printf $i "%s\t%d\n", md5_hex($u), $l;
+    my $u = sprintf("http://$FILE/surf/%s%s", $s, ($t ? "?$t" : ""));
+    print $f pack('N', length($u)), $u;
+    printf $i "%s%s\t%d\n", md5_hex($u), $l;
     $l += length($u);
 }
 close $i;
