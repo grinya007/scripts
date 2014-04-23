@@ -23,7 +23,7 @@ my $rows_count = ($file_size - 8 - $data_length) / $INDEX_ROW_LENGTH;
 warn 'we got '.$rows_count.' rows of data';
 
 my $find_hash = md5($FIND);
-my $find_prefix = unpack_Q((split //, $find_hash)[0..7]);
+my $find_prefix = unpack('Q', join('', reverse((split //, $find_hash)[0..7])));
 warn 'searching for '.$find_prefix;
 
 my $guess_position = sprintf("%.0f", ($find_prefix * $rows_count) / $MAX_LONG_VALUE) + 0;
@@ -44,22 +44,12 @@ while (@a) { # TODO in-memory binary search here, take data by offset
     #warn scalar(@a);
     my @tmp = splice(@a, 0, $INDEX_ROW_LENGTH);
     die 'wtf' if scalar(@tmp) != $INDEX_ROW_LENGTH;
-    my $prefix = unpack_Q(@tmp[0..7]);
+    my $prefix = unpack('Q', join('', reverse @tmp[0..7]));
     #warn $find_prefix;
-    #warn $prefix;
+    warn $prefix;
     die 'you miss right' if !$i && $prefix >= $find_prefix;
     die 'you got it on '.$i.' step' if $i && $prefix >= $find_prefix;
     die 'you miss left' if !scalar(@a) && $prefix <= $find_prefix;
     $i++;
 }
 
-# FIXME something goes wrong with unpack( 'Q', <eight left bytes of md5> )
-sub unpack_Q {
-    my $shift = 56;
-    my $long = 0;
-    for (@_) {
-        $long += (ord($_) << $shift);
-        $shift -= 8;
-    }
-    return $long;
-}
