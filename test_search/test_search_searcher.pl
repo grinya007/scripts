@@ -5,7 +5,7 @@ use Digest::MD5 qw/md5/;
 my $FILE = $ARGV[0];
 my $FIND = $ARGV[1];
 my $INDEX_ROW_LENGTH = 16 + 8; # md5 hash + 64-bit int offset
-my $ROWS_TO_SCAN = 100000;
+my $ROWS_TO_SCAN = 1000;
 my $MAX_LONG_VALUE = 0xffffffffffffffff;
 #warn sprintf("%16x", $MAX_LONG_VALUE);
 

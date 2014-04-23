@@ -5,7 +5,7 @@ use Digest::MD5 qw/md5_hex/;
 use IPC::Open2;
 
 my $FILE = 'surfingbird.com';
-my $URLS_COUNT = 100000000;
+my $URLS_COUNT = 10000;
 
 my $l = 0;
 my ($i, $o, $f);
@@ -19,9 +19,10 @@ for (1..$URLS_COUNT) {
     $s =~ s/[=+\/]//g; 
     my $t = join("&", ("param=".int(rand(1000000))) x $params_counts->[int(rand(12))]);
     my $u = sprintf("http://$FILE/surf/%s%s", $s, ($t ? "?$t" : ""));
-    print $f pack('N', length($u)), $u;
-    printf $i "%s%s\t%d\n", md5_hex($u), $l;
-    $l += length($u);
+    my $d = pack('N', length($u)).$u;
+    print $f $d;
+    printf $i "%s\t%d\n", md5_hex($u), $l;
+    $l += length($d);
 }
 close $i;
 my $i = 0;
