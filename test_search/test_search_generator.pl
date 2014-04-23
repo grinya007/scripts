@@ -4,8 +4,8 @@ use MIME::Base64 qw/encode_base64/;
 use Digest::MD5 qw/md5_hex/;
 use IPC::Open2;
 
-my $FILE = 'surfingbird.com';
-my $URLS_COUNT = 10000;
+my $FILE = 'surfingbird.ru';
+my $URLS_COUNT = 1000000;
 
 my $l = 0;
 my ($i, $o, $f);
@@ -25,14 +25,27 @@ for (1..$URLS_COUNT) {
     $l += length($d);
 }
 close $i;
-my $i = 0;
+my $j = 0;
 my ($min, $max);
 while (my $r = <$o>) {
     chomp($r);
     my ($h, $of) = split /\t/, $r;
-    #warn $h;
-    print $f pack('H*', $h), pack('Q', $of);
+    $h = pack('H*', $h);
+    print $f $h, pack('Q', $of);
+    $min = left_bytes_2_long($h) if !$j;
+    $max = left_bytes_2_long($h) if eof;
+    $j = 1;
 }
 print $f pack('Q', $l);
+print $f pack('Q', $min);
+print $f pack('Q', $max);
 close $f;
 close $o;
+
+
+sub left_bytes_2_long {
+    my ($s, $offset) = @_;
+    $offset ||= 0;
+    unpack('Q', join('', reverse(split //, substr($s, $offset, 8))));
+};
+

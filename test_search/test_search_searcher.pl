@@ -5,28 +5,27 @@ use Digest::MD5 qw/md5/;
 my $FILE = $ARGV[0];
 my $FIND = $ARGV[1];
 my $INDEX_ROW_LENGTH = 16 + 8; # md5 hash + 64-bit int offset
-my $ROWS_TO_SCAN = 1000;
-my $MAX_LONG_VALUE = 0xffffffffffffffff;
-#warn sprintf("%16x", $MAX_LONG_VALUE);
+my $ROWS_TO_SCAN = 20000;
 
 die 'wha?' if (!$FILE || !-f($FILE) || !$FIND);
 
 my $file_size = -s($FILE);
 open F, $FILE;
-my $data_length;
+my $meta_data;
 warn 'doing first seek to read data length';
-sysseek(F, -8, 2); # SEEK_END
-sysread(F, $data_length, 8);
-$data_length = unpack('Q', $data_length);
+sysseek(F, -24, 2); # SEEK_END
+sysread(F, $meta_data, 24);
+my $data_length = unpack('Q', substr($meta_data, 0, 8));
+my $min_prefix = unpack('Q', substr($meta_data, 8, 8));
+my $max_prefix = unpack('Q', substr($meta_data, 16, 8));
 warn 'we got '.$data_length.' bytes of data';
-my $rows_count = ($file_size - 8 - $data_length) / $INDEX_ROW_LENGTH;
+my $rows_count = ($file_size - 24 - $data_length) / $INDEX_ROW_LENGTH;
 warn 'we got '.$rows_count.' rows of data';
 
 my $find_hash = md5($FIND);
-my $find_prefix = unpack('Q', join('', reverse((split //, $find_hash)[0..7])));
-warn 'searching for '.$find_prefix;
+my $find_prefix = left_bytes_2_long($find_hash);
 
-my $guess_position = sprintf("%.0f", ($find_prefix * $rows_count) / $MAX_LONG_VALUE) + 0;
+my $guess_position = int(($find_prefix * $rows_count) / ($max_prefix - $min_prefix));
 warn 'your row is nearby '.$guess_position.' position';
 
 my $scan_start = $guess_position <= $ROWS_TO_SCAN/2 ? 0 : $guess_position - $ROWS_TO_SCAN/2;
@@ -35,21 +34,26 @@ warn 'doing second seek to try rows range';
 sysseek(F, $data_length + $scan_start * $INDEX_ROW_LENGTH, 0);
 
 my $b;
-sysread(F, $b, $scan_offset * $INDEX_ROW_LENGTH);
+my $scan_length = $scan_offset * $INDEX_ROW_LENGTH;
+sysread(F, $b, $scan_length);
+die 'mazafaka happened' if $scan_length != length($b);
 
-my $i = 0;
-my @a = split //, $b;
-#warn @a[0..20];
-while (@a) { # TODO in-memory binary search here, take data by offset
-    #warn scalar(@a);
-    my @tmp = splice(@a, 0, $INDEX_ROW_LENGTH);
-    die 'wtf' if scalar(@tmp) != $INDEX_ROW_LENGTH;
-    my $prefix = unpack('Q', join('', reverse @tmp[0..7]));
-    #warn $find_prefix;
-    warn $prefix;
-    die 'you miss right' if !$i && $prefix >= $find_prefix;
-    die 'you got it on '.$i.' step' if $i && $prefix >= $find_prefix;
-    die 'you miss left' if !scalar(@a) && $prefix <= $find_prefix;
-    $i++;
-}
+my $first_row = substr($b, 0, $INDEX_ROW_LENGTH);
+my $last_row = substr($b, ($scan_offset - 1) * $INDEX_ROW_LENGTH, $INDEX_ROW_LENGTH);
+
+my ($first_prefix, $last_prefix) = map { left_bytes_2_long($_) } ($first_row, $last_row);
+
+warn 'is      '.$find_prefix."\n";
+warn 'between '.$first_prefix."\n";
+warn 'and     '.$last_prefix.' huh?'."\n";
+
+warn $find_prefix > $first_prefix ? 'left ok' : 'left bad';
+warn $find_prefix < $last_prefix ? 'right ok' : 'rigth bad';
+
+
+sub left_bytes_2_long {
+    my ($s, $offset) = @_;
+    $offset ||= 0;
+    unpack('Q', join('', reverse(split //, substr($s, $offset, 8))));
+};
 
