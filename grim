@@ -1,0 +1,56 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+
+my $FOLD_CTX = 5; # lines above and below the focus line
+
+my $grep_cmd = 'grep '.join(' ', map {esa($_)} @ARGV);
+my $lines_by_file = {};
+for (`$grep_cmd`) {
+    my ($file, $line) = split /:/;
+    next unless $file && $line;
+    $lines_by_file->{$file} ||= [];
+    push @{ $lines_by_file->{$file} }, $line;
+}
+exit unless keys %$lines_by_file;
+
+my $vim_cmd_one_file = '%s %s
+set foldmethod=manual
+%s
+1
+';
+
+my $vim_script = '';
+my $first = 1;
+for my $file (sort keys %$lines_by_file) {
+    my $open_cmd = $first ? 'edit' : 'tabe';
+    $first = 0;
+    $vim_script .= sprintf(
+        $vim_cmd_one_file, 
+        $open_cmd,
+        $file,
+        vim_cmd_fold_all_around($lines_by_file->{$file})
+    );
+}
+
+exec('vim -c '.esa($vim_script));
+
+sub vim_cmd_fold_all_around {
+    my ($focus_lines) = @_;
+    my $folds = '';
+    my $fold_start = 1;
+    for my $line (sort {$a <=> $b} @$focus_lines) {
+        if ($line > $FOLD_CTX && ($line - $FOLD_CTX) > $fold_start) {
+            $folds .= $fold_start.','.($line - $FOLD_CTX)." fold\n";
+        }
+        $fold_start = $line + $FOLD_CTX;
+    }
+    $folds .= 'silent! '.$fold_start.',$ fold';
+    return $folds;
+}
+
+sub esa {
+    $_[0] =~ s#'#'\\''#g;
+    return "'" . $_[0] . "'";
+}
