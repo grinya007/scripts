@@ -2,6 +2,16 @@
 use strict;
 use warnings;
 
+# 
+#   GRep to vIM - opens grep results in vim, passes commandline opts directly to grep commandline
+#
+#   SYNOPSIS 
+#
+#       grim -nrP '^\s*sub\s*encode' ./*
+#
+#
+
+
 
 my $FOLD_CTX = 5; # lines above and below the focus line
 
