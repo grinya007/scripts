@@ -13,9 +13,10 @@ use warnings;
 
 
 
-my $FOLD_CTX = 5; # lines above and below the focus line
+my $FOLD_CTX = 10; # lines above and below the focus line
 
-my $grep_cmd = 'grep '.join(' ', map {esa($_)} @ARGV);
+my $read_only = 0;
+my $grep_cmd = 'grep '.join(' ', map { $_ eq '--read-only' ? eval { $read_only = 1; return () } : esa($_) } @ARGV);
 my $lines_by_file = {};
 for (`$grep_cmd`) {
     my ($file, $line) = split /:/;
@@ -34,7 +35,7 @@ set foldmethod=manual
 my $vim_script = '';
 my $first = 1;
 for my $file (sort keys %$lines_by_file) {
-    my $open_cmd = $first ? 'edit' : 'tabe';
+    my $open_cmd = $first ? $read_only ? 'view' : 'edit' : 'tabe'.($read_only ? "\nview" : '');
     $first = 0;
     $vim_script .= sprintf(
         $vim_cmd_one_file, 
@@ -43,8 +44,9 @@ for my $file (sort keys %$lines_by_file) {
         vim_cmd_fold_all_around($lines_by_file->{$file})
     );
 }
-
-exec('vim -c '.esa($vim_script));
+ 
+ # FIXME hardcoded alternative .vimrc
+exec('vim -u '.$ENV{HOME}.'/git/my_vim/.vimrc_ro -c '.esa($vim_script));
 
 sub vim_cmd_fold_all_around {
     my ($focus_lines) = @_;
