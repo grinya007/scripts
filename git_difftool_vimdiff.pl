@@ -16,6 +16,7 @@ my $bOptions = GetOptions
     'base=s'                => \$rhOptions->{base},
     'remote=s'              => \$rhOptions->{remote},
     'merged=s'              => \$rhOptions->{merged},
+    'branches=s'            => \$rhOptions->{branches},
 );
 die if !$bOptions;
 
