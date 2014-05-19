@@ -36,7 +36,15 @@ sub run_difftool
 {
     system(sprintf('mkdir -p %s', $sTmpDir));
     system(sprintf('rm %s/*', $sTmpDir));
-    system(sprintf('git difftool --tool gdv %s', join(' ', @ARGV)));
+    if ($rhOptions->{branches}) 
+    {
+        system(sprintf('git checkout %s && git pull origin %s', ($_) x 2)) && die for split /\.\./, $rhOptions->{branches};
+        system(sprintf('git difftool %s --tool gdv %s', $rhOptions->{branches}, join(' ', @ARGV)));
+    }
+    else
+    {
+        system(sprintf('git difftool --tool gdv %s', join(' ', @ARGV)));
+    }
     return if !-f $sDiffFilesList;
     # FIXME hardcoded alternative .vimrc
     exec(sprintf('vim -u '.$ENV{HOME}.'/git/my_vim/.vimrc_ro -c %s', esa(make_script(`cat $sDiffFilesList`))));
@@ -44,10 +52,25 @@ sub run_difftool
 
 sub copy_files
 {
-    system(sprintf('cp %s %s/', $rhOptions->{'local'}, $sTmpDir));
-    open F, '>>'.$sDiffFilesList;
-    print F $sTmpDir, '/', (fileparse($rhOptions->{'local'}))[0], "\t", getcwd(), '/', $rhOptions->{'remote'}, "\n";
-    close F;
+    #warn Dumper $rhOptions;
+    #return;
+    if ($rhOptions->{remote} =~ m!^/tmp!) # FIXME FIXME branches mode
+    {
+        my $sRemote = $rhOptions->{base};
+        $sRemote =~ s!/!_!g;
+        system(sprintf('cp %s %s/', $rhOptions->{'local'}, $sTmpDir));
+        system(sprintf('cp %s %s/%s', $rhOptions->{remote}, $sTmpDir, $sRemote));
+        open F, '>>'.$sDiffFilesList;
+        print F $sTmpDir, '/', (fileparse($rhOptions->{'local'}))[0], "\t", $sTmpDir, '/', $sRemote, "\n";
+        close F;
+    }
+    else
+    {
+        system(sprintf('cp %s %s/', $rhOptions->{'local'}, $sTmpDir));
+        open F, '>>'.$sDiffFilesList;
+        print F $sTmpDir, '/', (fileparse($rhOptions->{'local'}))[0], "\t", getcwd(), '/', $rhOptions->{'remote'}, "\n";
+        close F;
+    }
 }
 
 sub make_script
@@ -62,8 +85,16 @@ sub make_script
         $bNotFirst ||= 1;
         chomp($sPair);
         my @aPair = split /\t/, $sPair;
-        $sScript .= "view $aPair[0]\n";
-        $sScript .= "diffsplit $aPair[1]\n";
+        if ($rhOptions->{branches}) 
+        {
+            $sScript .= "view $aPair[0]\ndiffthis\nvsplit\n";
+            $sScript .= "view $aPair[1]\ndiffthis\n";
+        }
+        else
+        {
+            $sScript .= "view $aPair[0]\n";
+            $sScript .= "diffsplit $aPair[1]\n";
+        }
     }
     return $sScript;
 }
