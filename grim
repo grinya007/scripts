@@ -58,7 +58,7 @@ sub vim_cmd_fold_all_around {
         }
         $fold_start = $line + $FOLD_CTX;
     }
-    $folds .= 'silent! '.$fold_start.',$ fold';
+    $folds .= 'execute(min([line("$"), '.$fold_start.']).",$ fold")';
     return $folds;
 }
 
