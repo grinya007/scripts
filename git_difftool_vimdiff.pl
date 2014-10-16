@@ -17,6 +17,7 @@ my $bOptions = GetOptions
     'remote=s'              => \$rhOptions->{remote},
     'merged=s'              => \$rhOptions->{merged},
     'branches=s'            => \$rhOptions->{branches},
+    'with-local'            => \$rhOptions->{bWithLocal},
 );
 die if !$bOptions;
 
@@ -39,6 +40,7 @@ sub run_difftool
     if ($rhOptions->{branches}) 
     {
         system(sprintf('git checkout %s && git pull origin %s', ($_) x 2)) && die for split /\.\./, $rhOptions->{branches};
+        system(sprintf('touch %s/with_local', $sTmpDir)) if $rhOptions->{bWithLocal};
         system(sprintf('git difftool %s --tool gdv %s', $rhOptions->{branches}, join(' ', @ARGV)));
     }
     else
@@ -57,11 +59,19 @@ sub copy_files
     if ($rhOptions->{remote} =~ m!^/tmp!) # FIXME FIXME branches mode
     {
         my $sRemote = $rhOptions->{base};
-        $sRemote =~ s!/!_!g;
+        if (-f $sTmpDir.'/with_local')
+        {
+            $sRemote = getcwd() . '/' . $sRemote;
+        }
+        else
+        {
+            $sRemote =~ s!/!_!g;
+            $sRemote = $sTmpDir . '/' . $sRemote;
+            system(sprintf('cp %s %s', $rhOptions->{remote}, $sRemote));
+        }
         system(sprintf('cp %s %s/', $rhOptions->{'local'}, $sTmpDir));
-        system(sprintf('cp %s %s/%s', $rhOptions->{remote}, $sTmpDir, $sRemote));
         open F, '>>'.$sDiffFilesList;
-        print F $sTmpDir, '/', (fileparse($rhOptions->{'local'}))[0], "\t", $sTmpDir, '/', $sRemote, "\n";
+        print F $sTmpDir, '/', (fileparse($rhOptions->{'local'}))[0], "\t", $sRemote, "\n";
         close F;
     }
     else
@@ -85,7 +95,7 @@ sub make_script
         $bNotFirst ||= 1;
         chomp($sPair);
         my @aPair = split /\t/, $sPair;
-        if ($rhOptions->{branches}) 
+        if ($rhOptions->{branches} && !$rhOptions->{bWithLocal})
         {
             $sScript .= "view $aPair[0]\ndiffthis\nvsplit\n";
             $sScript .= "view $aPair[1]\ndiffthis\n";
