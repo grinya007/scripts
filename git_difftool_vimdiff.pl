@@ -17,6 +17,7 @@ my $bOptions = GetOptions
     'remote=s'              => \$rhOptions->{remote},
     'merged=s'              => \$rhOptions->{merged},
     'branches=s'            => \$rhOptions->{branches},
+    'no-pull'               => \$rhOptions->{bNoPull},
     'with-local'            => \$rhOptions->{bWithLocal},
 );
 die if !$bOptions;
@@ -39,13 +40,17 @@ sub run_difftool
     system(sprintf('rm %s/*', $sTmpDir));
     if ($rhOptions->{branches}) 
     {
-        system(sprintf('git checkout %s && git pull origin %s', ($_) x 2)) && die for split /\.\./, $rhOptions->{branches};
+        unless ($rhOptions->{bNoPull})
+        {
+            system(sprintf('git checkout %s && git pull origin %s', ($_) x 2)) && die for split /\.\./, $rhOptions->{branches};
+        }
         system(sprintf('touch %s/with_local', $sTmpDir)) if $rhOptions->{bWithLocal};
-        system(sprintf('git difftool %s --tool gdv %s', $rhOptions->{branches}, join(' ', @ARGV)));
+        system(sprintf('git difftool %s --no-prompt --tool gdv %s', $rhOptions->{branches}, join(' ', @ARGV)));
     }
     else
     {
-        system(sprintf('git difftool --tool gdv %s', join(' ', @ARGV)));
+        my $cmd = sprintf('git difftool --no-prompt --tool gdv %s', join(' ', @ARGV));
+        system($cmd);
     }
     return if !-f $sDiffFilesList;
     # FIXME hardcoded alternative .vimrc
@@ -91,9 +96,9 @@ sub make_script
     my $sScript = "set diffopt=filler,vertical\n";
     for my $sPair (@files)
     {
+        chomp($sPair);
         $sScript .= "tabe\n" if $bNotFirst;
         $bNotFirst ||= 1;
-        chomp($sPair);
         my @aPair = split /\t/, $sPair;
         if ($rhOptions->{branches} && !$rhOptions->{bWithLocal})
         {

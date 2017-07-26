@@ -13,7 +13,7 @@ use warnings;
 
 
 
-my $FOLD_CTX = 10; # lines above and below the focus line
+my $FOLD_CTX = 4; # lines above and below the focus line
 
 my $read_only = 0;
 my $grep_cmd = 'grep '.join(' ', map { $_ eq '--read-only' ? eval { $read_only = 1; return () } : esa($_) } @ARGV);
