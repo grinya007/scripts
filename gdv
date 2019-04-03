@@ -63,7 +63,7 @@ sub run_difftool
     }
     return if !-f $sDiffFilesList;
     # FIXME hardcoded alternative .vimrc
-    exec(sprintf('vim -u '.$ENV{HOME}.'/git/my_vim/.vimrc_ro -c %s', esa(make_script(`cat $sDiffFilesList`))));
+    exec(sprintf('vim -u '.$ENV{HOME}.'/.vimrc_ro -c %s', esa(make_script(`cat $sDiffFilesList`))));
 }
 
 sub copy_files

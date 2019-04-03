@@ -46,7 +46,7 @@ for my $file (sort keys %$lines_by_file) {
 }
  
  # FIXME hardcoded alternative .vimrc
-exec('vim -u '.$ENV{HOME}.'/git/my_vim/.vimrc_ro -c '.esa($vim_script));
+exec('vim -u '.$ENV{HOME}.'/.vimrc_ro -c '.esa($vim_script));
 
 sub vim_cmd_fold_all_around {
     my ($focus_lines) = @_;
