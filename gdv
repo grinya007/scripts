@@ -6,18 +6,21 @@ use Cwd;
 use Data::Dumper;
 use Getopt::Long;
 use File::Basename;
-#print Dumper(\@ARGV);
+#warn Dumper(\%ENV);
 
 my $rhOptions = {};
 my $bOptions = GetOptions
 (
     'copy-files'            => \$rhOptions->{bCopyFiles},
+    'incl=s'                => \$rhOptions->{reIncl},
+    'excl=s'                => \$rhOptions->{reExcl},
     'local=s'               => \$rhOptions->{local},
     'base=s'                => \$rhOptions->{base},
     'remote=s'              => \$rhOptions->{remote},
     'merged=s'              => \$rhOptions->{merged},
     'branches=s'            => \$rhOptions->{branches},
-    'no-pull'               => \$rhOptions->{bNoPull},
+    'c=s'                   => \$rhOptions->{branches},
+    'pull'                  => \$rhOptions->{bPull},
     'with-local'            => \$rhOptions->{bWithLocal},
 );
 die if !$bOptions;
@@ -38,14 +41,20 @@ sub run_difftool
 {
     system(sprintf('mkdir -p %s', $sTmpDir));
     system(sprintf('rm %s/*', $sTmpDir));
-    if ($rhOptions->{branches}) 
+    if (my $b = $rhOptions->{branches}) 
     {
-        unless ($rhOptions->{bNoPull})
+        $b = "$b^..$b" unless ($b =~ /\.\./);
+        if ($rhOptions->{bPull})
         {
-            system(sprintf('git checkout %s && git pull origin %s', ($_) x 2)) && die for split /\.\./, $rhOptions->{branches};
+            system(sprintf('git checkout %s && git pull origin %s', ($_) x 2)) && die for split /\.\./, $b;
         }
         system(sprintf('touch %s/with_local', $sTmpDir)) if $rhOptions->{bWithLocal};
-        system(sprintf('git difftool %s --no-prompt --tool gdv %s', $rhOptions->{branches}, join(' ', @ARGV)));
+        system(sprintf(
+          'GDV_INCL=%s GDV_EXCL=%s git difftool %s --no-prompt --tool gdv %s',
+          $rhOptions->{reIncl} || '',
+          $rhOptions->{reExcl} || '',
+          $b, join(' ', @ARGV)
+        ));
     }
     else
     {
@@ -59,6 +68,16 @@ sub run_difftool
 
 sub copy_files
 {
+    return if (
+      $ENV{'GDV_INCL'} &&
+      eval { qr/$ENV{GDV_INCL}/ } &&
+      $rhOptions->{base} !~ /$ENV{GDV_INCL}/
+    );
+    return if (
+      $ENV{'GDV_EXCL'} &&
+      eval { qr/$ENV{GDV_EXCL}/ } &&
+      $rhOptions->{base} =~ /$ENV{GDV_EXCL}/
+    );
     #warn Dumper $rhOptions;
     #return;
     if ($rhOptions->{remote} =~ m!^/tmp!) # FIXME FIXME branches mode
