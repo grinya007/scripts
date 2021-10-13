@@ -40,7 +40,10 @@ else
 sub run_difftool
 {
     system(sprintf('mkdir -p %s', $sTmpDir));
-    system(sprintf('rm %s/*', $sTmpDir));
+    unless (is_empty_dir($sTmpDir))
+    {
+      system(sprintf('rm %s/*', $sTmpDir));
+    }
     if (my $b = $rhOptions->{branches}) 
     {
         $b = "$b^..$b" unless ($b =~ /\.\./);
@@ -64,6 +67,17 @@ sub run_difftool
     return if !-f $sDiffFilesList;
     # FIXME hardcoded alternative .vimrc
     exec(sprintf('vim -u '.$ENV{HOME}.'/.vimrc_ro -c %s', esa(make_script(`cat $sDiffFilesList`))));
+}
+
+sub is_empty_dir
+{
+    my ($sDir) = @_;
+    opendir(my $dh, $sDir) || die $!;
+    while (defined(my $sFile = readdir($dh)))
+    {
+        return 0 if $sFile !~ /^\.\.?$/;
+    }
+    return 1;
 }
 
 sub copy_files
